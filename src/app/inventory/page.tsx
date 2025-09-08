@@ -76,28 +76,28 @@ const getInitialBrands = () => {
       {
         id: 'certainteed',
         name: 'CertainTeed',
-        image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600',
-        logo: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=100&fit=crop'
+        image: 'https://logodix.com/logo/1617238.jpg',
+        logo: 'https://logodix.com/logo/1617238.jpg'
       },
       {
         id: 'atlas',
         name: 'Atlas',
-        image: 'https://images.unsplash.com/photo-1632478023417-22e475dbc5bd?w=600',
-        logo: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=100&fit=crop'
+        image: 'https://static.wikia.nocookie.net/logopedia/images/0/0e/Atlas_Roofing_Corporation_1982.png',
+        logo: 'https://static.wikia.nocookie.net/logopedia/images/0/0e/Atlas_Roofing_Corporation_1982.png'
       }
     ],
     'hip-and-ridge': [
       {
         id: 'certainteed',
         name: 'CertainTeed',
-        image: 'https://images.unsplash.com/photo-1614564079675-2c8395264878?w=600',
-        logo: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=100&fit=crop'
+        image: 'https://logodix.com/logo/1617238.jpg',
+        logo: 'https://logodix.com/logo/1617238.jpg'
       },
       {
         id: 'atlas',
         name: 'Atlas',
-        image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600',
-        logo: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=100&fit=crop'
+        image: 'https://static.wikia.nocookie.net/logopedia/images/0/0e/Atlas_Roofing_Corporation_1982.png',
+        logo: 'https://static.wikia.nocookie.net/logopedia/images/0/0e/Atlas_Roofing_Corporation_1982.png'
       }
     ]
   };
