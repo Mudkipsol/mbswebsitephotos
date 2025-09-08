@@ -73,6 +73,8 @@ export default function AdminDashboard() {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false)
   const [isEditOrderOpen, setIsEditOrderOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<Order | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [newProduct, setNewProduct] = useState({
     name: '',
     category: '',
@@ -96,29 +98,106 @@ export default function AdminDashboard() {
   useEffect(() => {
     const loadOrders = () => {
       try {
+        setIsLoading(true)
+        setLoadError(null)
         const savedOrders = localStorage.getItem('mbs-orders')
         if (savedOrders) {
           const parsedOrders = JSON.parse(savedOrders)
-          // Transform cart orders to admin format
-          const transformedOrders = parsedOrders.map((order: any) => ({
-            id: order.id,
-            customerName: order.deliveryInfo?.contactName || 'Unknown Customer',
-            company: order.deliveryInfo?.jobSiteName || 'N/A',
-            date: new Date(order.orderDate).toLocaleDateString(),
-            deliveryDate: order.deliveryInfo?.date ? new Date(order.deliveryInfo.date).toLocaleDateString() : 'TBD',
-            deliveryType: order.deliveryInfo?.deliveryType || 'ground',
-            status: order.status || 'pending',
-            total: order.total || 0,
-            subtotal: order.subtotal || 0,
-            tax: order.tax || 0,
-            deliveryFee: order.deliveryFee || 0,
-            items: order.cartItems || [],
-            deliveryInfo: order.deliveryInfo || {}
-          }))
+          console.log('Raw orders from localStorage:', parsedOrders)
+
+          // Transform cart orders to admin format with safe parsing
+          const transformedOrders = parsedOrders.map((order: any) => {
+            try {
+              // Safe date parsing
+              const orderDate = order.orderDate ? new Date(order.orderDate) : new Date()
+              const deliveryDateRaw = order.deliveryInfo?.date
+              let deliveryDate = 'TBD'
+
+              if (deliveryDateRaw) {
+                try {
+                  const parsedDeliveryDate = new Date(deliveryDateRaw)
+                  if (!isNaN(parsedDeliveryDate.getTime())) {
+                    deliveryDate = parsedDeliveryDate.toLocaleDateString()
+                  }
+                } catch (dateError) {
+                  console.warn('Error parsing delivery date:', dateError)
+                }
+              }
+
+              return {
+                id: order.id || `ORD-${Date.now()}`,
+                customerName: order.deliveryInfo?.contactName || 'Unknown Customer',
+                company: order.deliveryInfo?.jobSiteName || 'N/A',
+                date: orderDate.toLocaleDateString(),
+                deliveryDate,
+                deliveryType: order.deliveryInfo?.deliveryType || 'ground',
+                status: order.status || 'pending',
+                total: Number(order.total) || 0,
+                subtotal: Number(order.subtotal) || 0,
+                tax: Number(order.tax) || 0,
+                deliveryFee: Number(order.deliveryFee) || 0,
+                items: Array.isArray(order.cartItems) ? order.cartItems : [],
+                deliveryInfo: {
+                  address: order.deliveryInfo?.address || '',
+                  city: order.deliveryInfo?.city || '',
+                  state: order.deliveryInfo?.state || '',
+                  zipCode: order.deliveryInfo?.zipCode || '',
+                  contactName: order.deliveryInfo?.contactName || '',
+                  contactPhone: order.deliveryInfo?.contactPhone || '',
+                  notes: order.deliveryInfo?.notes || '',
+                  purchaseOrderNumber: order.deliveryInfo?.purchaseOrderNumber || '',
+                  orderType: order.deliveryInfo?.orderType || 'purchase',
+                  jobSiteName: order.deliveryInfo?.jobSiteName || '',
+                  jobSiteAddress: order.deliveryInfo?.jobSiteAddress || '',
+                  creditTerms: order.deliveryInfo?.creditTerms || 'credit-card'
+                }
+              }
+            } catch (orderError) {
+              console.error('Error transforming order:', orderError, order)
+              // Return a minimal valid order object
+              return {
+                id: order.id || `ORD-ERROR-${Date.now()}`,
+                customerName: 'Error Loading Customer',
+                company: 'Error',
+                date: new Date().toLocaleDateString(),
+                deliveryDate: 'TBD',
+                deliveryType: 'ground' as const,
+                status: 'pending' as const,
+                total: 0,
+                subtotal: 0,
+                tax: 0,
+                deliveryFee: 0,
+                items: [],
+                deliveryInfo: {
+                  address: '',
+                  city: '',
+                  state: '',
+                  zipCode: '',
+                  contactName: '',
+                  contactPhone: '',
+                  notes: '',
+                  purchaseOrderNumber: '',
+                  orderType: 'purchase' as const,
+                  jobSiteName: '',
+                  jobSiteAddress: '',
+                  creditTerms: 'credit-card' as const
+                }
+              }
+            }
+          })
+
+          console.log('Transformed orders:', transformedOrders)
           setOrders(transformedOrders)
+        } else {
+          setOrders([])
         }
+        setIsLoading(false)
       } catch (error) {
         console.error('Error loading orders:', error)
+        setLoadError(`Failed to load orders: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        // Set empty orders array on error to prevent crashes
+        setOrders([])
+        setIsLoading(false)
       }
     }
 
@@ -143,8 +222,8 @@ export default function AdminDashboard() {
   const stats = {
     totalProducts: products.length,
     lowStockItems: products.filter(p => p.stock <= p.lowStockAlert).length,
-    pendingOrders: orders.filter(o => o.status === 'pending').length,
-    totalRevenue: orders.reduce((sum, order) => sum + order.total, 0)
+    pendingOrders: orders.filter(o => o?.status === 'pending').length,
+    totalRevenue: orders.reduce((sum, order) => sum + (Number(order?.total) || 0), 0)
   }
 
   const updateOrderStatus = (orderId: string, newStatus: 'pending' | 'accepted' | 'processing' | 'delivering' | 'delivered' | 'cancelled') => {
@@ -172,8 +251,16 @@ export default function AdminDashboard() {
   }
 
   const openEditOrder = (order: Order) => {
-    setEditingOrder({ ...order })
-    setIsEditOrderOpen(true)
+    try {
+      if (!order || !order.id) {
+        console.error('Invalid order for editing:', order)
+        return
+      }
+      setEditingOrder({ ...order })
+      setIsEditOrderOpen(true)
+    } catch (error) {
+      console.error('Error opening order for edit:', error)
+    }
   }
 
   const saveOrderChanges = () => {
@@ -575,7 +662,29 @@ export default function AdminDashboard() {
               </Badge>
             </div>
 
-            {orders.length === 0 ? (
+            {isLoading ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Orders...</h3>
+                  <p className="text-gray-600">Please wait while we load your orders.</p>
+                </CardContent>
+              </Card>
+            ) : loadError ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <X className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-red-900 mb-2">Error Loading Orders</h3>
+                  <p className="text-red-600 mb-4">{loadError}</p>
+                  <Button
+                    onClick={() => window.location.reload()}
+                    className="bg-red-500 hover:bg-red-600 text-white"
+                  >
+                    Reload Page
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : orders.length === 0 ? (
               <Card>
                 <CardContent className="text-center py-12">
                   <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -600,7 +709,13 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {orders.map((order) => (
+                      {orders.map((order) => {
+                        try {
+                          if (!order || !order.id) {
+                            console.warn('Invalid order object:', order)
+                            return null
+                          }
+                          return (
                         <TableRow key={order.id}>
                           <TableCell className="font-medium">{order.id}</TableCell>
                           <TableCell>
@@ -787,7 +902,18 @@ export default function AdminDashboard() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                          )
+                        } catch (orderRenderError) {
+                          console.error('Error rendering order:', orderRenderError, order)
+                          return (
+                            <TableRow key={order?.id || Math.random()}>
+                              <TableCell colSpan={8} className="text-center text-red-600 py-4">
+                                Error loading order: {order?.id || 'Unknown'}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        }
+                      })}
                     </TableBody>
                   </Table>
                 </CardContent>
