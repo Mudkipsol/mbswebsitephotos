@@ -274,27 +274,35 @@ const getInitialDirectProducts = () => {
   return {
     underlayment: [
       {
-        id: 'synthetic-underlayment',
-        name: 'Synthetic Underlayment Roll',
-        image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=600',
-        price: 89.99,
-        stock: 150,
+        id: '15lb-felt',
+        name: '15lb Felt',
+        image: '/images/15-felt.jpg',
+        price: 35.99,
+        stock: 250,
         hasOptions: false
       },
       {
-        id: 'felt-underlayment',
-        name: 'Felt Underlayment #30',
-        image: 'https://images.unsplash.com/photo-1632478023417-22e475dbc5bd?w=600',
+        id: '30lb-felt',
+        name: '30lb Felt',
+        image: '/images/30lb-felt.jpg',
         price: 45.99,
         stock: 200,
         hasOptions: false
       },
       {
-        id: 'ice-water-shield',
-        name: 'Ice & Water Shield',
-        image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600',
-        price: 125.99,
-        stock: 85,
+        id: 'synthetic-felt-1',
+        name: 'Synthetic Felt 1',
+        image: '/images/synthetic-felt-1.jpg',
+        price: 89.99,
+        stock: 150,
+        hasOptions: false
+      },
+      {
+        id: 'synthetic-felt-2',
+        name: 'Synthetic Felt 2',
+        image: '/images/synthetic-felt-2.jpg',
+        price: 95.99,
+        stock: 125,
         hasOptions: false
       }
     ],
