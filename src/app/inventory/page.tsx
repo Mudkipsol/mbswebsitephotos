@@ -46,16 +46,16 @@ const getInitialCategories = () => {
   }
   return [
     { id: 'shingles', name: 'Shingles', hasSubcategories: true, image: 'https://i.ibb.co/zTZzG2LM/Shingles.jpg' },
-    { id: 'underlayment', name: 'Underlayment', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=600' },
-    { id: 'hip-and-ridge', name: 'Hip and Ridge', hasSubcategories: true, image: 'https://images.unsplash.com/photo-1614564079675-2c8395264878?w=600' },
-    { id: 'ice-and-water', name: 'Ice and Water', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=600' },
-    { id: 'drip-edge', name: 'Drip Edge and Gutter Apron', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1632478023417-22e475dbc5bd?w=600' },
-    { id: 'ventilation', name: 'Ventilation', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1614564079675-2c8395264878?w=600' },
-    { id: 'flashings', name: 'Flashings', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600' },
-    { id: 'accessories', name: 'Accessories', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1632478023417-22e475dbc5bd?w=600' },
-    { id: 'nails', name: 'Nails', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=600' },
-    { id: 'paint-caulking', name: 'Paint and Caulking', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1614564079675-2c8395264878?w=600' },
-    { id: 'valley-metal', name: 'Valley Metal', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600' }
+    { id: 'underlayment', name: 'Underlayment', hasSubcategories: false, image: 'https://i.ibb.co/XrPdP74S/Underlayment.png' },
+    { id: 'hip-and-ridge', name: 'Hip and Ridge', hasSubcategories: true, image: 'https://i.ibb.co/MDQFXdrc/Hip-Ridge.png' },
+    { id: 'ice-and-water', name: 'Ice and Water', hasSubcategories: false, image: 'https://i.ibb.co/hRgJ23bS/Ice-and-Water.jpg' },
+    { id: 'drip-edge', name: 'Drip Edge and Gutter Apron', hasSubcategories: false, image: 'https://i.ibb.co/sJqx94Ms/Drip-Edge-Gytter-Apron.jpg' },
+    { id: 'ventilation', name: 'Ventilation', hasSubcategories: false, image: 'https://i.ibb.co/RknpXthD/Ventilation.png' },
+    { id: 'flashings', name: 'Flashings', hasSubcategories: false, image: 'https://i.ibb.co/dwBYrnWx/Flashings.jpg' },
+    { id: 'accessories', name: 'Accessories', hasSubcategories: false, image: 'https://i.ibb.co/XfPtwRWR/Accessories.png' },
+    { id: 'nails', name: 'Nails', hasSubcategories: false, image: 'https://i.ibb.co/yBK8zdXf/Nails.png' },
+    { id: 'paint-caulking', name: 'Paint and Caulking', hasSubcategories: false, image: 'https://i.ibb.co/RTTVwFwf/Paint-and-Caulking.png' },
+    { id: 'valley-metal', name: 'Valley Metal', hasSubcategories: false, image: 'https://i.ibb.co/tTBH0B70/Valley-Metal.jpg' }
   ];
 };
 
