@@ -23,7 +23,8 @@ import {
   Eye,
   Truck,
   DollarSign,
-  Calendar
+  Calendar,
+  Save
 } from 'lucide-react'
 import Header from '@/components/Header'
 
@@ -45,7 +46,7 @@ interface Order {
   date: string
   deliveryDate: string
   deliveryType: 'ground' | 'airdrop'
-  status: 'pending' | 'confirmed' | 'delivered' | 'cancelled'
+  status: 'pending' | 'accepted' | 'processing' | 'delivering' | 'delivered' | 'cancelled'
   total: number
   subtotal: number
   tax: number
@@ -70,6 +71,8 @@ interface Order {
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [isAddProductOpen, setIsAddProductOpen] = useState(false)
+  const [isEditOrderOpen, setIsEditOrderOpen] = useState(false)
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null)
   const [newProduct, setNewProduct] = useState({
     name: '',
     category: '',
@@ -144,7 +147,7 @@ export default function AdminDashboard() {
     totalRevenue: orders.reduce((sum, order) => sum + order.total, 0)
   }
 
-  const updateOrderStatus = (orderId: string, newStatus: 'confirmed' | 'cancelled' | 'delivered') => {
+  const updateOrderStatus = (orderId: string, newStatus: 'pending' | 'accepted' | 'processing' | 'delivering' | 'delivered' | 'cancelled') => {
     setOrders(prev => {
       const updated = prev.map(order =>
         order.id === orderId ? { ...order, status: newStatus } : order
@@ -166,6 +169,56 @@ export default function AdminDashboard() {
 
       return updated
     })
+  }
+
+  const openEditOrder = (order: Order) => {
+    setEditingOrder({ ...order })
+    setIsEditOrderOpen(true)
+  }
+
+  const saveOrderChanges = () => {
+    if (!editingOrder) return
+
+    setOrders(prev => {
+      const updated = prev.map(order =>
+        order.id === editingOrder.id ? editingOrder : order
+      )
+
+      // Also update localStorage
+      try {
+        const savedOrders = localStorage.getItem('mbs-orders')
+        if (savedOrders) {
+          const parsedOrders = JSON.parse(savedOrders)
+          const updatedSavedOrders = parsedOrders.map((order: any) =>
+            order.id === editingOrder.id ? { ...order, ...editingOrder } : order
+          )
+          localStorage.setItem('mbs-orders', JSON.stringify(updatedSavedOrders))
+        }
+      } catch (error) {
+        console.error('Error saving order changes:', error)
+      }
+
+      return updated
+    })
+
+    setIsEditOrderOpen(false)
+    setEditingOrder(null)
+  }
+
+  const getNextStatus = (currentStatus: string) => {
+    const statusFlow = {
+      'pending': 'accepted',
+      'accepted': 'processing',
+      'processing': 'delivering',
+      'delivering': 'delivered',
+      'delivered': 'delivered', // Final state
+      'cancelled': 'cancelled' // Final state
+    }
+    return statusFlow[currentStatus as keyof typeof statusFlow] || currentStatus
+  }
+
+  const canAdvanceStatus = (status: string) => {
+    return !['delivered', 'cancelled'].includes(status)
   }
 
   const addProduct = () => {
@@ -196,10 +249,24 @@ export default function AdminDashboard() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-500'
-      case 'confirmed': return 'bg-blue-500'
+      case 'accepted': return 'bg-blue-500'
+      case 'processing': return 'bg-purple-500'
+      case 'delivering': return 'bg-orange-500'
       case 'delivered': return 'bg-green-500'
       case 'cancelled': return 'bg-red-500'
       default: return 'bg-gray-500'
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending': return '⏳'
+      case 'accepted': return '✅'
+      case 'processing': return '⚙️'
+      case 'delivering': return '🚛'
+      case 'delivered': return '📦'
+      case 'cancelled': return '❌'
+      default: return '❓'
     }
   }
 
@@ -320,7 +387,7 @@ export default function AdminDashboard() {
                               <>
                                 <Button
                                   size="sm"
-                                  onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                                  onClick={() => updateOrderStatus(order.id, 'accepted')}
                                   className="bg-green-600 text-white hover:bg-green-700"
                                 >
                                   <Check className="w-4 h-4" />
@@ -565,9 +632,11 @@ export default function AdminDashboard() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge className={`${getStatusColor(order.status)} text-white`}>
-                              {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge className={`${getStatusColor(order.status)} text-white`}>
+                                {getStatusIcon(order.status)} {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                              </Badge>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div>
@@ -668,36 +737,53 @@ export default function AdminDashboard() {
                                 </DialogContent>
                               </Dialog>
 
-                              {order.status === 'pending' && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => updateOrderStatus(order.id, 'confirmed')}
-                                    className="bg-green-600 text-white hover:bg-green-700"
-                                    title="Confirm Order"
-                                  >
-                                    <Check className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                                    className="bg-red-500 text-white hover:bg-red-600"
-                                    title="Cancel Order"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </>
-                              )}
-                              {order.status === 'confirmed' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEditOrder(order)}
+                                title="Edit Order"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+
+                              {canAdvanceStatus(order.status) && (
                                 <Button
                                   size="sm"
-                                  onClick={() => updateOrderStatus(order.id, 'delivered')}
+                                  onClick={() => updateOrderStatus(order.id, getNextStatus(order.status) as any)}
                                   className="bg-blue-600 text-white hover:bg-blue-700"
-                                  title="Mark as Delivered"
+                                  title={`Move to ${getNextStatus(order.status)}`}
                                 >
-                                  <Truck className="w-4 h-4" />
+                                  <Check className="w-4 h-4" />
                                 </Button>
                               )}
+
+                              {order.status !== 'cancelled' && order.status !== 'delivered' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                                  className="bg-red-500 text-white hover:bg-red-600"
+                                  title="Cancel Order"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {/* Status Dropdown for quick changes */}
+                              <Select
+                                value={order.status}
+                                onValueChange={(value) => updateOrderStatus(order.id, value as any)}
+                              >
+                                <SelectTrigger className="w-32 h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pending">⏳ Pending</SelectItem>
+                                  <SelectItem value="accepted">✅ Accepted</SelectItem>
+                                  <SelectItem value="processing">⚙️ Processing</SelectItem>
+                                  <SelectItem value="delivering">🚛 Delivering</SelectItem>
+                                  <SelectItem value="delivered">📦 Delivered</SelectItem>
+                                  <SelectItem value="cancelled">❌ Cancelled</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -722,6 +808,227 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Edit Order Dialog */}
+        <Dialog open={isEditOrderOpen} onOpenChange={setIsEditOrderOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Order - {editingOrder?.id}</DialogTitle>
+              <DialogDescription>
+                Modify order details and customer information
+              </DialogDescription>
+            </DialogHeader>
+
+            {editingOrder && (
+              <div className="space-y-6">
+                {/* Order Status */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-status">Order Status</Label>
+                    <Select
+                      value={editingOrder.status}
+                      onValueChange={(value) => setEditingOrder({...editingOrder, status: value as any})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">⏳ Pending</SelectItem>
+                        <SelectItem value="accepted">✅ Accepted</SelectItem>
+                        <SelectItem value="processing">⚙️ Processing</SelectItem>
+                        <SelectItem value="delivering">🚛 Delivering</SelectItem>
+                        <SelectItem value="delivered">📦 Delivered</SelectItem>
+                        <SelectItem value="cancelled">❌ Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-delivery-type">Delivery Type</Label>
+                    <Select
+                      value={editingOrder.deliveryType}
+                      onValueChange={(value) => {
+                        const newDeliveryFee = value === 'airdrop' ? 150 : 75
+                        const newTotal = editingOrder.subtotal + editingOrder.tax + newDeliveryFee
+                        setEditingOrder({
+                          ...editingOrder,
+                          deliveryType: value as 'ground' | 'airdrop',
+                          deliveryFee: newDeliveryFee,
+                          total: newTotal
+                        })
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ground">🚛 Ground Drop ($75)</SelectItem>
+                        <SelectItem value="airdrop">✈️ Airdrop ($150)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Customer Information */}
+                <div>
+                  <h4 className="font-semibold mb-3">Customer Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-customer-name">Customer Name</Label>
+                      <Input
+                        id="edit-customer-name"
+                        value={editingOrder.deliveryInfo.contactName}
+                        onChange={(e) => setEditingOrder({
+                          ...editingOrder,
+                          customerName: e.target.value,
+                          deliveryInfo: {...editingOrder.deliveryInfo, contactName: e.target.value}
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-company">Company/Job Site</Label>
+                      <Input
+                        id="edit-company"
+                        value={editingOrder.deliveryInfo.jobSiteName}
+                        onChange={(e) => setEditingOrder({
+                          ...editingOrder,
+                          company: e.target.value,
+                          deliveryInfo: {...editingOrder.deliveryInfo, jobSiteName: e.target.value}
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-phone">Phone Number</Label>
+                      <Input
+                        id="edit-phone"
+                        value={editingOrder.deliveryInfo.contactPhone}
+                        onChange={(e) => setEditingOrder({
+                          ...editingOrder,
+                          deliveryInfo: {...editingOrder.deliveryInfo, contactPhone: e.target.value}
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-po">Purchase Order #</Label>
+                      <Input
+                        id="edit-po"
+                        value={editingOrder.deliveryInfo.purchaseOrderNumber}
+                        onChange={(e) => setEditingOrder({
+                          ...editingOrder,
+                          deliveryInfo: {...editingOrder.deliveryInfo, purchaseOrderNumber: e.target.value}
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Address */}
+                <div>
+                  <h4 className="font-semibold mb-3">Delivery Address</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-address">Street Address</Label>
+                      <Input
+                        id="edit-address"
+                        value={editingOrder.deliveryInfo.address}
+                        onChange={(e) => setEditingOrder({
+                          ...editingOrder,
+                          deliveryInfo: {...editingOrder.deliveryInfo, address: e.target.value}
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-city">City</Label>
+                      <Input
+                        id="edit-city"
+                        value={editingOrder.deliveryInfo.city}
+                        onChange={(e) => setEditingOrder({
+                          ...editingOrder,
+                          deliveryInfo: {...editingOrder.deliveryInfo, city: e.target.value}
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-state">State</Label>
+                      <Input
+                        id="edit-state"
+                        value={editingOrder.deliveryInfo.state}
+                        onChange={(e) => setEditingOrder({
+                          ...editingOrder,
+                          deliveryInfo: {...editingOrder.deliveryInfo, state: e.target.value}
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-zip">ZIP Code</Label>
+                      <Input
+                        id="edit-zip"
+                        value={editingOrder.deliveryInfo.zipCode}
+                        onChange={(e) => setEditingOrder({
+                          ...editingOrder,
+                          deliveryInfo: {...editingOrder.deliveryInfo, zipCode: e.target.value}
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Special Instructions */}
+                <div>
+                  <Label htmlFor="edit-notes">Special Instructions</Label>
+                  <Textarea
+                    id="edit-notes"
+                    value={editingOrder.deliveryInfo.notes}
+                    onChange={(e) => setEditingOrder({
+                      ...editingOrder,
+                      deliveryInfo: {...editingOrder.deliveryInfo, notes: e.target.value}
+                    })}
+                    rows={3}
+                  />
+                </div>
+
+                {/* Order Summary */}
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-3">Order Summary</h4>
+                  <div className="bg-gray-50 p-4 rounded space-y-2">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span>${editingOrder.subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax (8%):</span>
+                      <span>${editingOrder.tax.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Delivery Fee ({editingOrder.deliveryType}):</span>
+                      <span>${editingOrder.deliveryFee.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg border-t pt-2">
+                      <span>Total:</span>
+                      <span>${editingOrder.total.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 border-t pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditOrderOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={saveOrderChanges}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
     </>
