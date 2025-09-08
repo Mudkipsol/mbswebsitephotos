@@ -76,8 +76,8 @@ const getInitialBrands = () => {
       {
         id: 'certainteed',
         name: 'CertainTeed',
-        image: 'https://logodix.com/logo/1617238.jpg',
-        logo: 'https://logodix.com/logo/1617238.jpg'
+        image: 'https://i.ibb.co/zTZzG2LM/Shingles.jpg',
+        logo: 'https://i.ibb.co/zTZzG2LM/Shingles.jpg'
       },
       {
         id: 'atlas',
@@ -90,8 +90,8 @@ const getInitialBrands = () => {
       {
         id: 'certainteed',
         name: 'CertainTeed',
-        image: 'https://logodix.com/logo/1617238.jpg',
-        logo: 'https://logodix.com/logo/1617238.jpg'
+        image: 'https://i.ibb.co/MDQFXdrc/Hip-Ridge.png',
+        logo: 'https://i.ibb.co/MDQFXdrc/Hip-Ridge.png'
       },
       {
         id: 'atlas',
