@@ -45,7 +45,7 @@ const getInitialCategories = () => {
     }
   }
   return [
-    { id: 'shingles', name: 'Shingles', hasSubcategories: true, image: 'https://i.ibb.co/zZzG2LM/Shingles.jpg' },
+    { id: 'shingles', name: 'Shingles', hasSubcategories: true, image: 'https://i.ibb.co/zTZzG2LM/Shingles.jpg' },
     { id: 'underlayment', name: 'Underlayment', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=600' },
     { id: 'hip-and-ridge', name: 'Hip and Ridge', hasSubcategories: true, image: 'https://images.unsplash.com/photo-1614564079675-2c8395264878?w=600' },
     { id: 'ice-and-water', name: 'Ice and Water', hasSubcategories: false, image: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=600' },
