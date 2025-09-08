@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -44,9 +44,27 @@ interface Order {
   company: string
   date: string
   deliveryDate: string
+  deliveryType: 'ground' | 'airdrop'
   status: 'pending' | 'confirmed' | 'delivered' | 'cancelled'
   total: number
-  items: { name: string; quantity: number; price: number }[]
+  subtotal: number
+  tax: number
+  deliveryFee: number
+  items: { id: string; name: string; quantity: number; price: number }[]
+  deliveryInfo: {
+    address: string
+    city: string
+    state: string
+    zipCode: string
+    contactName: string
+    contactPhone: string
+    notes: string
+    purchaseOrderNumber: string
+    orderType: 'purchase' | 'quote'
+    jobSiteName: string
+    jobSiteAddress: string
+    creditTerms: 'net30' | 'cod' | 'credit-card'
+  }
 }
 
 export default function AdminDashboard() {
@@ -63,40 +81,61 @@ export default function AdminDashboard() {
     description: ''
   })
 
-  // Sample data
   const [products, setProducts] = useState<Product[]>([
-    { id: '1', name: 'Architectural Shingles - Charcoal', category: 'shingles', brand: 'Owens Corning', price: 89.99, stock: 150, unit: 'bundle', lowStockAlert: 50 },
-    { id: '2', name: 'Synthetic Underlayment - 10 SQ', category: 'underlayment', brand: 'Titanium UDL', price: 89.99, stock: 25, unit: 'roll', lowStockAlert: 30 },
+    { id: '1', name: 'Architectural Shingles - Charcoal', category: 'shingles', brand: 'CertainTeed', price: 89.99, stock: 245, unit: 'bundle', lowStockAlert: 50 },
+    { id: '2', name: 'Synthetic Underlayment', category: 'underlayment', brand: 'Deck-Armor', price: 89.99, stock: 12, unit: 'roll', lowStockAlert: 15 },
     { id: '3', name: 'Aluminum Drip Edge - White', category: 'drip-edge', brand: 'Amerimax', price: 3.25, stock: 500, unit: 'linear ft', lowStockAlert: 100 },
   ])
 
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: 'ORD-001',
-      customerName: 'John Smith',
-      company: 'ABC Roofing Co.',
-      date: '2024-08-27',
-      deliveryDate: '2024-08-30',
-      status: 'pending',
-      total: 1324.89,
-      items: [
-        { name: 'Architectural Shingles - Charcoal', quantity: 10, price: 89.99 },
-        { name: 'Synthetic Underlayment', quantity: 5, price: 89.99 }
-      ]
-    },
-    {
-      id: 'ORD-002',
-      customerName: 'Sarah Johnson',
-      company: 'Professional Roofers LLC',
-      date: '2024-08-26',
-      deliveryDate: '2024-08-29',
-      status: 'confirmed',
-      total: 2156.78,
-      items: [
-        { name: 'Designer Shingles - Aged Copper', quantity: 15, price: 125.99 }
-      ]
+  const [orders, setOrders] = useState<Order[]>([])
+
+  // Load orders from localStorage
+  useEffect(() => {
+    const loadOrders = () => {
+      try {
+        const savedOrders = localStorage.getItem('mbs-orders')
+        if (savedOrders) {
+          const parsedOrders = JSON.parse(savedOrders)
+          // Transform cart orders to admin format
+          const transformedOrders = parsedOrders.map((order: any) => ({
+            id: order.id,
+            customerName: order.deliveryInfo?.contactName || 'Unknown Customer',
+            company: order.deliveryInfo?.jobSiteName || 'N/A',
+            date: new Date(order.orderDate).toLocaleDateString(),
+            deliveryDate: order.deliveryInfo?.date ? new Date(order.deliveryInfo.date).toLocaleDateString() : 'TBD',
+            deliveryType: order.deliveryInfo?.deliveryType || 'ground',
+            status: order.status || 'pending',
+            total: order.total || 0,
+            subtotal: order.subtotal || 0,
+            tax: order.tax || 0,
+            deliveryFee: order.deliveryFee || 0,
+            items: order.cartItems || [],
+            deliveryInfo: order.deliveryInfo || {}
+          }))
+          setOrders(transformedOrders)
+        }
+      } catch (error) {
+        console.error('Error loading orders:', error)
+      }
     }
-  ])
+
+    loadOrders()
+
+    // Listen for storage changes (new orders)
+    const handleStorageChange = () => {
+      loadOrders()
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+
+    // Also check for changes every 2 seconds (for same-tab updates)
+    const interval = setInterval(loadOrders, 2000)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(interval)
+    }
+  }, [])
 
   const stats = {
     totalProducts: products.length,
@@ -105,10 +144,28 @@ export default function AdminDashboard() {
     totalRevenue: orders.reduce((sum, order) => sum + order.total, 0)
   }
 
-  const updateOrderStatus = (orderId: string, newStatus: 'confirmed' | 'cancelled') => {
-    setOrders(prev => prev.map(order =>
-      order.id === orderId ? { ...order, status: newStatus } : order
-    ))
+  const updateOrderStatus = (orderId: string, newStatus: 'confirmed' | 'cancelled' | 'delivered') => {
+    setOrders(prev => {
+      const updated = prev.map(order =>
+        order.id === orderId ? { ...order, status: newStatus } : order
+      )
+
+      // Also update localStorage
+      try {
+        const savedOrders = localStorage.getItem('mbs-orders')
+        if (savedOrders) {
+          const parsedOrders = JSON.parse(savedOrders)
+          const updatedSavedOrders = parsedOrders.map((order: any) =>
+            order.id === orderId ? { ...order, status: newStatus } : order
+          )
+          localStorage.setItem('mbs-orders', JSON.stringify(updatedSavedOrders))
+        }
+      } catch (error) {
+        console.error('Error updating order status:', error)
+      }
+
+      return updated
+    })
   }
 
   const addProduct = () => {
@@ -444,81 +501,212 @@ export default function AdminDashboard() {
 
           {/* Orders Tab */}
           <TabsContent value="orders" className="space-y-6">
-            <h2 className="text-2xl font-bold">Order Management</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Order Management</h2>
+              <Badge variant="outline" className="text-lg px-3 py-1">
+                {orders.length} Total Orders
+              </Badge>
+            </div>
 
-            <Card>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Order Date</TableHead>
-                      <TableHead>Delivery Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.id}</TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{order.customerName}</p>
-                            <p className="text-sm text-gray-600">{order.company}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>{order.date}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Calendar className="w-4 h-4 mr-1 text-gray-500" />
-                            {order.deliveryDate}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`${getStatusColor(order.status)} text-white`}>
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">${order.total.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="outline">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            {order.status === 'pending' && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  onClick={() => updateOrderStatus(order.id, 'confirmed')}
-                                  className="bg-green-600 text-white hover:bg-green-700"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                                  className="bg-red-500 text-white hover:bg-red-600"
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </>
-                            )}
-                            {order.status === 'confirmed' && (
-                              <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
-                                <Truck className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
+            {orders.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Orders Yet</h3>
+                  <p className="text-gray-600">Orders placed through the cart will appear here.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Order Date</TableHead>
+                        <TableHead>Delivery</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {orders.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">{order.id}</TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{order.customerName}</p>
+                              <p className="text-sm text-gray-600">{order.company}</p>
+                              {order.deliveryInfo.purchaseOrderNumber && (
+                                <p className="text-xs text-blue-600">PO: {order.deliveryInfo.purchaseOrderNumber}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{order.date}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <Calendar className="w-4 h-4 mr-1 text-gray-500" />
+                              <div>
+                                <p className="text-sm">{order.deliveryDate}</p>
+                                <p className="text-xs text-gray-500">
+                                  {order.deliveryInfo.city}, {order.deliveryInfo.state}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              className={`${order.deliveryType === 'airdrop' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}
+                            >
+                              {order.deliveryType === 'airdrop' ? '✈️ Airdrop' : '🚛 Ground Drop'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${getStatusColor(order.status)} text-white`}>
+                              {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">${order.total.toFixed(2)}</p>
+                              <p className="text-xs text-gray-500">
+                                {order.items.length} items
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-1">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" variant="outline" title="View Details">
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                  <DialogHeader>
+                                    <DialogTitle>Order Details - {order.id}</DialogTitle>
+                                    <DialogDescription>
+                                      Complete order information and delivery details
+                                    </DialogDescription>
+                                  </DialogHeader>
+
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <h4 className="font-semibold mb-2">Customer Information</h4>
+                                        <p><strong>Name:</strong> {order.customerName}</p>
+                                        <p><strong>Company:</strong> {order.company}</p>
+                                        <p><strong>Phone:</strong> {order.deliveryInfo.contactPhone}</p>
+                                        {order.deliveryInfo.purchaseOrderNumber && (
+                                          <p><strong>PO Number:</strong> {order.deliveryInfo.purchaseOrderNumber}</p>
+                                        )}
+                                      </div>
+                                      <div>
+                                        <h4 className="font-semibold mb-2">Delivery Information</h4>
+                                        <p><strong>Type:</strong> {order.deliveryType === 'airdrop' ? 'Airdrop ($150)' : 'Ground Drop ($75)'}</p>
+                                        <p><strong>Date:</strong> {order.deliveryDate}</p>
+                                        <p><strong>Address:</strong> {order.deliveryInfo.address}</p>
+                                        <p>{order.deliveryInfo.city}, {order.deliveryInfo.state} {order.deliveryInfo.zipCode}</p>
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <h4 className="font-semibold mb-2">Order Items</h4>
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow>
+                                            <TableHead>Product</TableHead>
+                                            <TableHead>Quantity</TableHead>
+                                            <TableHead>Price</TableHead>
+                                            <TableHead>Total</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {order.items.map((item, index) => (
+                                            <TableRow key={index}>
+                                              <TableCell>{item.name}</TableCell>
+                                              <TableCell>{item.quantity}</TableCell>
+                                              <TableCell>${item.price.toFixed(2)}</TableCell>
+                                              <TableCell>${(item.quantity * item.price).toFixed(2)}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+
+                                    <div className="border-t pt-4">
+                                      <div className="space-y-2">
+                                        <div className="flex justify-between">
+                                          <span>Subtotal:</span>
+                                          <span>${order.subtotal.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Tax (8%):</span>
+                                          <span>${order.tax.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Delivery Fee:</span>
+                                          <span>${order.deliveryFee.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between font-bold text-lg border-t pt-2">
+                                          <span>Total:</span>
+                                          <span>${order.total.toFixed(2)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {order.deliveryInfo.notes && (
+                                      <div>
+                                        <h4 className="font-semibold mb-2">Special Instructions</h4>
+                                        <p className="text-sm bg-gray-50 p-3 rounded">{order.deliveryInfo.notes}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+
+                              {order.status === 'pending' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                                    className="bg-green-600 text-white hover:bg-green-700"
+                                    title="Confirm Order"
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                                    className="bg-red-500 text-white hover:bg-red-600"
+                                    title="Cancel Order"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+                              {order.status === 'confirmed' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateOrderStatus(order.id, 'delivered')}
+                                  className="bg-blue-600 text-white hover:bg-blue-700"
+                                  title="Mark as Delivered"
+                                >
+                                  <Truck className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Customers Tab */}

@@ -75,6 +75,12 @@ export default function CartPage() {
   const total = subtotal + tax + deliveryFee
 
   const handleSubmitOrder = () => {
+    // Prepare delivery info with proper date formatting
+    const processedDeliveryInfo = {
+      ...deliveryInfo,
+      date: deliveryInfo.date ? deliveryInfo.date.toISOString() : null
+    }
+
     const orderData = {
       orderType: 'delivery',
       cartItems,
@@ -84,7 +90,7 @@ export default function CartPage() {
       total,
       orderDate: new Date().toISOString(),
       status: 'pending',
-      deliveryInfo
+      deliveryInfo: processedDeliveryInfo
     }
 
     // Save order to localStorage (in real app, this would be an API call)
@@ -97,7 +103,10 @@ export default function CartPage() {
     localStorage.setItem('mbs-orders', JSON.stringify(existingOrders))
 
     console.log('Order submitted:', newOrder)
-    alert('Delivery order submitted successfully! You will receive a confirmation email shortly.')
+
+    const deliveryType = deliveryInfo.deliveryType === 'airdrop' ? 'Airdrop' : 'Ground Drop'
+    alert(`${deliveryType} delivery order submitted successfully! Order ID: ${newOrder.id}\n\nYou will receive a confirmation email shortly.`)
+
     clearCart()
     setShowDeliveryScheduling(false)
 
